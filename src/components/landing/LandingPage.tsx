@@ -36,16 +36,13 @@ export const LandingPage = () => {
                 </h1>
 
                 <p className="max-w-2xl mx-auto text-lg text-zinc-400 mb-12 leading-relaxed">
-                    Experimenta la mensajería privada más rápida del mundo con cifrado de extremo a extremo. Chat, búsqueda y notificaciones en tiempo real, todo en un diseño premium.
+                    Experimenta la mensajería privada más rápida del mundo con cifrado de extremo a extremo. Chat y busqueda, todo en un diseño premium.
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-24">
                     <Link href="/login" className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-2xl shadow-blue-600/40 active:scale-95 flex items-center justify-center gap-2">
                         Empezar a Chatear <ArrowRight size={20} />
                     </Link>
-                    <button className="w-full sm:w-auto glass border border-white/5 hover:bg-white/10 px-8 py-4 rounded-2xl font-bold text-lg transition-all">
-                        Ver Demo
-                    </button>
                 </div>
 
                 {/* Features Grid */}
@@ -79,9 +76,7 @@ export const LandingPage = () => {
             <footer className="relative max-w-7xl mx-auto px-6 py-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 bg-[#09090b]">
                 <p className="text-zinc-500 text-sm">© 2026 Realtime Chat Inc. Todos los derechos reservados.</p>
                 <div className="flex gap-8 text-sm text-zinc-500">
-                    <a href="#" className="hover:text-white transition-colors">Privacidad</a>
-                    <a href="#" className="hover:text-white transition-colors">Términos</a>
-                    <a href="#" className="hover:text-white transition-colors cursor-pointer">Github</a>
+                    <a href="https://github.com/julianalvaarez/realtime-chat-frontend" className="hover:text-white transition-colors cursor-pointer">Github</a>
                 </div>
             </footer>
             <div className="h-20" /> {/* Spacer for mobile */}

@@ -61,19 +61,26 @@ export default function HomePage() {
         }
       }
 
-      setConversations((prev) =>
-        prev.map(c => {
-          if (c.id === message.conversation_id) {
-            const isCurrentChatOpen = selectedChat?.id === c.id;
-            return {
-              ...c,
-              last_message: message.content,
-              unread_count: (isCurrentChatOpen || isFromMe) ? 0 : (c.unread_count || 0) + 1
-            };
-          }
-          return c;
-        })
-      );
+      setConversations((prev) => {
+        const index = prev.findIndex(c => c.id === message.conversation_id);
+        if (index === -1) {
+          // Si no existe, deberíamos quizas recargar o esperar al siguiente fetch
+          // Pero por ahora, si recibimos un mensaje de uno que no esta en la lista, lo dejamos pasar
+          // o podríamos intentar agregarlo. Por simplicidad, solo reordenamos los existentes.
+          return prev;
+        }
+
+        const isCurrentChatOpen = selectedChat?.id === message.conversation_id;
+        const updatedConv = {
+          ...prev[index],
+          last_message: message.content,
+          last_message_at: message.created_at,
+          unread_count: (isCurrentChatOpen || isFromMe) ? 0 : (prev[index].unread_count || 0) + 1
+        };
+
+        const filtered = prev.filter(c => c.id !== message.conversation_id);
+        return [updatedConv, ...filtered];
+      });
     };
 
     socket.on("new-message", handleNewMessage);
@@ -98,8 +105,13 @@ export default function HomePage() {
           avatar_url: d.other_participant_avatar_url
         },
         last_message: d.last_message,
+        last_message_at: d.last_message_at, // Asumiendo que el RPC lo devuelve
         unread_count: Number(d.unread_count)
-      }));
+      })).sort((a: any, b: any) => {
+        const dateA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+        const dateB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+        return dateB - dateA;
+      });
       setConversations(formatted);
     } catch (err) {
       console.error("Error fetching conversations:", err);
@@ -107,52 +119,45 @@ export default function HomePage() {
   };
 
   const selectConversation = async (conv: Conversation) => {
+    console.log("🐞 [CRITICAL INFO] Intentando abrir chat:", conv.id);
     try {
       if (!user?.id || !conv?.id) {
-        console.warn("Invalid selection - User or Conversation ID missing:", { userId: user?.id, convId: conv?.id });
+        console.warn("🔍 [DEBUG] Error: ID faltante", { userId: user?.id, convId: conv?.id });
         return;
       }
 
       setSelectedChat(conv);
 
-      // Update unread count in background
+      // Limpiar no leídos en background
       if (conv.unread_count && conv.unread_count > 0) {
         supabase.from('messages')
           .update({ is_read: true })
           .eq('conversation_id', conv.id)
           .eq('is_read', false)
           .neq('sender_id', user.id)
-          .then(({ error }) => {
-            if (error) console.error("Error updates unread:", error.message || error);
+          .then(({ error: readError }) => {
+            if (readError) console.error("🔍 [DEBUG] Error al marcar leídos:", readError.message);
           });
         setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
       }
 
       if (socket) socket.emit("join-conversation", conv.id);
 
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('messages')
         .select('*')
         .eq('conversation_id', conv.id)
         .order('created_at', { ascending: true });
 
-      if (error) {
-        // Detailed logging to fix the "{}" issue
-        console.error("Supabase Error Full Object:", error);
-        console.error("Supabase Error Details:", {
-          message: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint
-        });
+      if (fetchError) {
+        console.error("🐞 [CRITICAL INFO] Error de Supabase al traer mensajes:", fetchError);
         return;
       }
       setMessages(data || []);
     } catch (err) {
-      console.error("Fallo crítico en selectConversation:", err);
+      console.error("🐞 [CRITICAL INFO] Fallo total en selectConversation:", err);
     }
   };
-
   const startSearch = async (val: string) => {
     setSearchQuery(val);
     if (val.length < 2) {
@@ -175,11 +180,12 @@ export default function HomePage() {
         return;
       }
 
-      const { data: commonId } = await supabase.rpc('get_common_conversation', { user_a: user.id, user_b: targetUserId });
+      // get_common_conversation devuelve table (array de objetos)
+      const { data: commonData } = await supabase.rpc('get_common_conversation', { user_a: user.id, user_b: targetUserId });
 
       let finalConvId;
-      if (commonId) {
-        finalConvId = commonId;
+      if (commonData && commonData.length > 0) {
+        finalConvId = commonData[0].conversation_id;
       } else {
         const { data: newConv } = await supabase.from('conversations').insert({}).select().single();
         if (!newConv) return;

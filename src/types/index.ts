@@ -18,5 +18,6 @@ export interface Conversation {
     id: string;
     other_participant: Profile;
     last_message?: string;
+    last_message_at?: string;
     unread_count?: number;
 }
